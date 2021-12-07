@@ -31,18 +31,16 @@
  *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
-
 /* Author: Ioan Sucan */
-
-#pragma once
-
+#ifndef MOVEIT_MOTION_PLANNING_RVIZ_PLUGIN_MOTION_PLANNING_FRAME_
+#define MOVEIT_MOTION_PLANNING_RVIZ_PLUGIN_MOTION_PLANNING_FRAME_
 #include <QWidget>
 #include <QTreeWidgetItem>
 #include <QListWidgetItem>
-
 #ifndef Q_MOC_RUN
 #include <moveit/macros/class_forward.h>
 #include <moveit/move_group_interface/move_group_interface.h>
+#include <moveit/planning_scene_interface/planning_scene_interface.h>
 #include <moveit/planning_scene_monitor/planning_scene_monitor.h>
 #include <moveit/robot_interaction/robot_interaction.h>
 #include <moveit/robot_interaction/interaction_handler.h>
@@ -52,39 +50,30 @@
 #include <moveit_msgs/MotionPlanRequest.h>
 #include <actionlib/client/simple_action_client.h>
 #include <object_recognition_msgs/ObjectRecognitionAction.h>
-
 #include <std_msgs/Bool.h>
 #include <std_msgs/Empty.h>
 #endif
-
 #include <map>
 #include <string>
 #include <memory>
-
 namespace rviz
 {
 class DisplayContext;
 }
-
 namespace Ui
 {
 class MotionPlanningUI;
 }
-
 namespace moveit_warehouse
 {
-MOVEIT_CLASS_FORWARD(PlanningSceneStorage);  // Defines PlanningSceneStoragePtr, ConstPtr, WeakPtr... etc
-MOVEIT_CLASS_FORWARD(ConstraintsStorage);    // Defines ConstraintsStoragePtr, ConstPtr, WeakPtr... etc
-MOVEIT_CLASS_FORWARD(RobotStateStorage);     // Defines RobotStateStoragePtr, ConstPtr, WeakPtr... etc
-}  // namespace moveit_warehouse
-
+MOVEIT_CLASS_FORWARD(PlanningSceneStorage);
+MOVEIT_CLASS_FORWARD(ConstraintsStorage);
+MOVEIT_CLASS_FORWARD(RobotStateStorage);
+}
 namespace moveit_rviz_plugin
 {
 class MotionPlanningDisplay;
-class MotionPlanningFrameJointsWidget;
-
 const std::string OBJECT_RECOGNITION_ACTION = "/recognize_objects";
-
 static const std::string TAB_CONTEXT = "Context";
 static const std::string TAB_PLANNING = "Planning";
 static const std::string TAB_MANIPULATION = "Manipulation";
@@ -92,72 +81,47 @@ static const std::string TAB_OBJECTS = "Scene Objects";
 static const std::string TAB_SCENES = "Stored Scenes";
 static const std::string TAB_STATES = "Stored States";
 static const std::string TAB_STATUS = "Status";
-
-static const double LARGE_MESH_THRESHOLD = 10.0;
-
 class MotionPlanningFrame : public QWidget
 {
   friend class MotionPlanningDisplay;
   Q_OBJECT
-
 public:
-  MotionPlanningFrame(const MotionPlanningFrame&) = delete;
-  MotionPlanningFrame(MotionPlanningDisplay* pdisplay, rviz::DisplayContext* context, QWidget* parent = nullptr);
-  ~MotionPlanningFrame() override;
-
+  MotionPlanningFrame(MotionPlanningDisplay* pdisplay, rviz::DisplayContext* context, QWidget* parent = 0);
+  ~MotionPlanningFrame();
   void changePlanningGroup();
   void enable();
   void disable();
   void sceneUpdate(planning_scene_monitor::PlanningSceneMonitor::SceneUpdateType update_type);
-
 protected:
   static const int ITEM_TYPE_SCENE = 1;
   static const int ITEM_TYPE_QUERY = 2;
-
-  void initFromMoveGroupNS();
   void constructPlanningRequest(moveit_msgs::MotionPlanRequest& mreq);
-
   void updateSceneMarkers(float wall_dt, float ros_dt);
-
   void updateExternalCommunication();
-
   MotionPlanningDisplay* planning_display_;
   rviz::DisplayContext* context_;
   Ui::MotionPlanningUI* ui_;
-  MotionPlanningFrameJointsWidget* joints_tab_;
-
   moveit::planning_interface::MoveGroupInterfacePtr move_group_;
+  moveit::planning_interface::PlanningSceneInterfacePtr planning_scene_interface_;
   moveit::semantic_world::SemanticWorldPtr semantic_world_;
-
   moveit::planning_interface::MoveGroupInterface::PlanPtr current_plan_;
   moveit_warehouse::PlanningSceneStoragePtr planning_scene_storage_;
   moveit_warehouse::ConstraintsStoragePtr constraints_storage_;
   moveit_warehouse::RobotStateStoragePtr robot_state_storage_;
-
   std::shared_ptr<rviz::InteractiveMarker> scene_marker_;
-
   typedef std::map<std::string, moveit_msgs::RobotState> RobotStateMap;
   typedef std::pair<std::string, moveit_msgs::RobotState> RobotStatePair;
   RobotStateMap robot_states_;
-  std::string default_planning_pipeline_;
-  std::vector<moveit_msgs::PlannerInterfaceDescription> planner_descriptions_;
-
 Q_SIGNALS:
   void planningFinished();
-  void configChanged();
-
 private Q_SLOTS:
-
   // Context tab
   void databaseConnectButtonClicked();
-  void planningPipelineIndexChanged(int index);
+  void publishSceneButtonClicked();
   void planningAlgorithmIndexChanged(int index);
   void resetDbButtonClicked();
   void approximateIKChanged(int state);
-
   // Planning tab
-  bool computeCartesianPlan();
-  bool computeJointSpacePlan();
   void planButtonClicked();
   void executeButtonClicked();
   void planAndExecuteButtonClicked();
@@ -166,32 +130,24 @@ private Q_SLOTS:
   void allowLookingToggled(bool checked);
   void allowExternalProgramCommunication(bool enable);
   void pathConstraintsIndexChanged(int index);
-  void onNewPlanningSceneState();
-  void startStateTextChanged(const QString& start_state);
-  void goalStateTextChanged(const QString& goal_state);
-  void planningGroupTextChanged(const QString& planning_group);
+  void useStartStateButtonClicked();
+  void useGoalStateButtonClicked();
   void onClearOctomapClicked();
-
   // Scene Objects tab
-  void clearScene();
-  void publishScene();
-  void publishSceneIfNeeded();
-  void setLocalSceneEdited(bool dirty = true);
-  bool isLocalSceneDirty() const;
+  void importFileButtonClicked();
+  void importUrlButtonClicked();
+  void clearSceneButtonClicked();
   void sceneScaleChanged(int value);
   void sceneScaleStartChange();
   void sceneScaleEndChange();
-  void shapesComboBoxChanged(const QString& text);
-  void addSceneObject();
-  void removeSceneObject();
+  void removeObjectButtonClicked();
   void selectedCollisionObjectChanged();
   void objectPoseValueChanged(double value);
   void collisionObjectChanged(QListWidgetItem* item);
   void imProcessFeedback(visualization_msgs::InteractiveMarkerFeedback& feedback);
   void copySelectedCollisionObject();
-  void exportGeometryAsTextButtonClicked();
-  void importGeometryFromTextButtonClicked();
-
+  void exportAsTextButtonClicked();
+  void importFromTextButtonClicked();
   // Stored scenes tab
   void saveSceneButtonClicked();
   void planningSceneItemClicked();
@@ -201,15 +157,22 @@ private Q_SLOTS:
   void loadSceneButtonClicked();
   void loadQueryButtonClicked();
   void warehouseItemNameChanged(QTreeWidgetItem* item, int column);
-
   // States tab
   void loadStateButtonClicked();
   void saveStartStateButtonClicked();
   void saveGoalStateButtonClicked();
+  void saveCurrentStateButtonClicked();
   void removeStateButtonClicked();
   void clearStatesButtonClicked();
   void setAsStartStateButtonClicked();
   void setAsGoalStateButtonClicked();
+  void planAllStatesButtonClicked();
+  void planAndExecuteAllStatesButtonClicked();
+  void planAllStatesCartesianTrajectory();
+  void planAllStatesCartesianExec();
+  void planAndExecuteAllStatesCartesianExec();
+  void planAllStatesJointSpaceExec();
+  void planAndExecuteAllStatesJointSpaceExec();
 
   // Pick and place
   void detectObjectsButtonClicked();
@@ -218,18 +181,14 @@ private Q_SLOTS:
   void selectedDetectedObjectChanged();
   void detectedObjectChanged(QListWidgetItem* item);
   void selectedSupportSurfaceChanged();
-
   // General
   void tabChanged(int index);
-
 private:
   // Context tab
   void computeDatabaseConnectButtonClicked();
   void computeDatabaseConnectButtonClickedHelper(int mode);
   void computeResetDbButtonClicked(const std::string& db);
-  void populatePlannersList(const std::vector<moveit_msgs::PlannerInterfaceDescription>& desc);
-  void populatePlannerDescription(const moveit_msgs::PlannerInterfaceDescription& desc);
-
+  void populatePlannersList(const moveit_msgs::PlannerInterfaceDescription& desc);
   // Planning tab
   void computePlanButtonClicked();
   void computeExecuteButtonClicked();
@@ -241,23 +200,20 @@ private:
   void populateConstraintsList(const std::vector<std::string>& constr);
   void configureForPlanning();
   void configureWorkspace();
-  void updateQueryStateHelper(moveit::core::RobotState& state, const std::string& v);
+  void updateQueryStateHelper(robot_state::RobotState& state, const std::string& v);
   void fillStateSelectionOptions();
-  void fillPlanningGroupOptions();
-  void startStateTextChangedExec(const std::string& start_state);
-  void goalStateTextChangedExec(const std::string& goal_state);
-
+  void useStartStateButtonExec();
+  void useGoalStateButtonExec();
   // Scene objects tab
+  void addObject(const collision_detection::WorldPtr& world, const std::string& id, const shapes::ShapeConstPtr& shape,
+                 const Eigen::Affine3d& pose);
   void updateCollisionObjectPose(bool update_marker_position);
   void createSceneInteractiveMarker();
   void renameCollisionObject(QListWidgetItem* item);
   void attachDetachCollisionObject(QListWidgetItem* item);
   void populateCollisionObjectsList();
-  void computeImportGeometryFromText(const std::string& path);
-  void computeExportGeometryAsText(const std::string& path);
-  visualization_msgs::InteractiveMarker
-  createObjectMarkerMsg(const collision_detection::CollisionEnv::ObjectConstPtr& obj);
-
+  void computeImportFromText(const std::string& path);
+  void computeExportAsText(const std::string& path);
   // Stored scenes tab
   void computeSaveSceneButtonClicked();
   void computeSaveQueryButtonClicked(const std::string& scene, const std::string& query_name);
@@ -268,14 +224,12 @@ private:
   void computeDeleteQueryButtonClicked();
   void computeDeleteQueryButtonClickedHelper(QTreeWidgetItem* s);
   void checkPlanningSceneTreeEnabledButtons();
-
   // States tab
-  void saveRobotStateButtonClicked(const moveit::core::RobotState& state);
+  void saveRobotStateButtonClicked(const robot_state::RobotState& state);
   void populateRobotStatesList();
-
   // Pick and place
   void processDetectedObjects();
-  void updateDetectedObjectsList(const std::vector<std::string>& object_ids);
+  void updateDetectedObjectsList(const std::vector<std::string>& object_ids, const std::vector<std::string>& objects);
   void publishTables();
   void updateSupportSurfacesList();
   ros::Publisher object_recognition_trigger_publisher_;
@@ -290,14 +244,13 @@ private:
   // For coloring
   std::string selected_object_name_;
   std::string selected_support_surface_name_;
-
   std::unique_ptr<actionlib::SimpleActionClient<object_recognition_msgs::ObjectRecognitionAction> >
       object_recognition_client_;
   template <typename T>
-  void waitForAction(const T& action, const ros::Duration& wait_for_server, const std::string& name);
+  void waitForAction(const T& action, const ros::NodeHandle& node_handle, const ros::Duration& wait_for_server,
+                     const std::string& name);
   void listenDetectedObjects(const object_recognition_msgs::RecognizedObjectArrayPtr& msg);
   ros::Subscriber object_recognition_subscriber_;
-
   ros::Subscriber plan_subscriber_;
   ros::Subscriber execute_subscriber_;
   ros::Subscriber stop_subscriber_;
@@ -307,9 +260,8 @@ private:
   ros::Subscriber update_custom_goal_state_subscriber_;
   // General
   void changePlanningGroupHelper();
-  shapes::ShapePtr loadMeshResource(const std::string& url);
+  void importResource(const std::string& path);
   void loadStoredStates(const std::string& pattern);
-
   void remotePlanCallback(const std_msgs::EmptyConstPtr& msg);
   void remoteExecuteCallback(const std_msgs::EmptyConstPtr& msg);
   void remoteStopCallback(const std_msgs::EmptyConstPtr& msg);
@@ -317,30 +269,23 @@ private:
   void remoteUpdateGoalStateCallback(const std_msgs::EmptyConstPtr& msg);
   void remoteUpdateCustomStartStateCallback(const moveit_msgs::RobotStateConstPtr& msg);
   void remoteUpdateCustomGoalStateCallback(const moveit_msgs::RobotStateConstPtr& msg);
-
   /* Selects or unselects a item in a list by the item name */
   void setItemSelectionInList(const std::string& item_name, bool selection, QListWidget* list);
-
-  ros::NodeHandle nh_;  // node handle with the namespace of the connected move_group node
+  ros::NodeHandle nh_;
   ros::Publisher planning_scene_publisher_;
   ros::Publisher planning_scene_world_publisher_;
-
-  collision_detection::CollisionEnv::ObjectConstPtr scaled_object_;
-  moveit::core::FixedTransformsMap scaled_object_subframes_;
-  EigenSTL::vector_Isometry3d scaled_object_shape_poses_;
-
+  collision_detection::CollisionWorld::ObjectConstPtr scaled_object_;
   std::vector<std::pair<std::string, bool> > known_collision_objects_;
   long unsigned int known_collision_objects_version_;
   bool first_time_;
   ros::ServiceClient clear_octomap_service_client_;
 };
-
 // \todo THIS IS REALLY BAD. NEED TO MOVE THIS AND RELATED FUNCTIONALITY OUT OF HERE
 template <typename T>
-void MotionPlanningFrame::waitForAction(const T& action, const ros::Duration& wait_for_server, const std::string& name)
+void MotionPlanningFrame::waitForAction(const T& action, const ros::NodeHandle& node_handle,
+                                        const ros::Duration& wait_for_server, const std::string& name)
 {
   ROS_DEBUG("Waiting for MoveGroup action server (%s)...", name.c_str());
-
   // in case ROS time is published, wait for the time data to arrive
   ros::Time start_time = ros::Time::now();
   while (start_time == ros::Time::now())
@@ -348,12 +293,11 @@ void MotionPlanningFrame::waitForAction(const T& action, const ros::Duration& wa
     ros::WallDuration(0.01).sleep();
     ros::spinOnce();
   }
-
   // wait for the server (and spin as needed)
   if (wait_for_server == ros::Duration(0, 0))
   {
     // wait forever until action server connects
-    while (ros::ok() && !action->isServerConnected())
+    while (node_handle.ok() && !action->isServerConnected())
     {
       ros::WallDuration(0.02).sleep();
       ros::spinOnce();
@@ -363,16 +307,16 @@ void MotionPlanningFrame::waitForAction(const T& action, const ros::Duration& wa
   {
     // wait for a limited amount of non-simulated time
     ros::WallTime final_time = ros::WallTime::now() + ros::WallDuration(wait_for_server.toSec());
-    while (ros::ok() && !action->isServerConnected() && final_time > ros::WallTime::now())
+    while (node_handle.ok() && !action->isServerConnected() && final_time > ros::WallTime::now())
     {
       ros::WallDuration(0.02).sleep();
       ros::spinOnce();
     }
   }
-
   if (!action->isServerConnected())
     throw std::runtime_error("Unable to connect to move_group action server within allotted time");
   else
     ROS_DEBUG("Connected to '%s'", name.c_str());
 };
-}  // namespace moveit_rviz_plugin
+}
+#endif
